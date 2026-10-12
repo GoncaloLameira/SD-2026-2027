@@ -63,6 +63,7 @@ public class MulticastLeader {
 
                         socket.send(new DatagramPacket(m, m.length, group, PORT));
 
+
                         long instante = System.currentTimeMillis();
 
                         if (i == 0) {

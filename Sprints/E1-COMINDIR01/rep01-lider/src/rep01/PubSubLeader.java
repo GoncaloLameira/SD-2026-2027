@@ -104,7 +104,8 @@ public class PubSubLeader {
             }
 
         } catch (IOException | InterruptedException e) {
-            System.out.println("Erro: " + e.getMessage());
+            System.out.println("Erro: " + e);
+            e.printStackTrace();
         }
     }
 }
