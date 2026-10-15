@@ -1,1 +1,9 @@
 .clawdea/REPO_STATE.md
+
+# macOS
+.DS_Store
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
