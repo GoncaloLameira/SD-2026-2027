@@ -47,6 +47,30 @@ public class IpfsPubSub {
         }
     }
 
+    public void publishWithRetry(String topic, String message)
+            throws IOException, InterruptedException {
+
+        int maxTentativas = 5;
+
+        for (int tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+            try {
+                publish(topic, message);
+                return;
+            } catch (IOException e) {
+                if (tentativa == maxTentativas) {
+                    throw e;
+                }
+
+                System.out.println(
+                        "Falha temporária no PubSub. Nova tentativa "
+                                + tentativa + "/" + maxTentativas
+                );
+
+                Thread.sleep(20);
+            }
+        }
+    }
+
     // subscreve o tópico; NÃO TERMINA: cada linha da resposta é uma mensagem JSON recebida
     public void subscribe(String topic, Consumer<String> onMessage) throws IOException, InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(URI.create(api + "/pubsub/sub?arg=" + toMultibase(topic)))

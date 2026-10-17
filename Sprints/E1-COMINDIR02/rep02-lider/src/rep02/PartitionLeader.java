@@ -7,48 +7,82 @@ import java.util.List;
 
 public class PartitionLeader {
 
-    static final int PARTITION = 0;
-
-    static final String TOPIC_IN = "rep02-in-p0";
-    static final String TOPIC_OUT = "rep02-p0";
-
-    static final String LEADER_ADDR = "127.0.0.1";
-    static final int DEFAULT_TCP_PORT = 7000;
-
     static final String DEFAULT_API = "http://127.0.0.1:5001/api/v0";
 
     public static void main(String[] args) {
-        String api = args.length > 0 ? args[0] : DEFAULT_API;
-        int tcpPort = args.length > 1
-                ? Integer.parseInt(args[1])
-                : DEFAULT_TCP_PORT;
+        if (args.length < 2) {
+            System.out.println(
+                    "Uso: java rep02.PartitionLeader <k> <N> [endereço] [api]"
+            );
+            return;
+        }
+
+        int partitionId = Integer.parseInt(args[0]);
+        int n = Integer.parseInt(args[1]);
+
+        if (n < 1) {
+            System.out.println("Número de partições inválido.");
+            return;
+        }
+
+        if (partitionId < 0 || partitionId >= n) {
+            System.out.println(
+                    "Partição inválida: P" + partitionId
+            );
+            return;
+        }
+
+        String leaderAddr = args.length > 2
+                ? args[2]
+                : "127.0.0.1";
+
+        String api = args.length > 3
+                ? args[3]
+                : DEFAULT_API;
+
+        int tcpPort = Wire.PORTO_BASE + partitionId;
+
+        String topicIn = Wire.topicIn(partitionId);
+        String topicOut = Wire.topicData(partitionId);
 
         IpfsPubSub pubSub = new IpfsPubSub(api);
 
+        Partitioner partitioner = new Partitioner(n);
+
         try {
-            RecordFile file = new RecordFile("lider-p0.txt");
+            RecordFile file = new RecordFile("lider-p" + partitionId + ".txt");
             long[] seq = {file.lastSeq()};
 
-            System.out.println("Líder P0 pronto.");
+            System.out.println("Líder P" + partitionId + " pronto.");
 
             // Thread que recebe as leituras do Producer através do PubSub
             Thread subscriberThread = new Thread(() -> {
                 try {
-                    System.out.println("A ouvir PubSub: " + TOPIC_IN);
+                    System.out.println("A ouvir PubSub: " + topicIn);
 
-                    pubSub.subscribe(TOPIC_IN, mensagem -> {
+                    pubSub.subscribe(topicIn, mensagem -> {
                         try {
                             System.out.println("Recebido: " + mensagem);
 
                             String[] campos = mensagem.split(";");
 
                             if (campos.length != 3 || !campos[0].equals("IN")) {
-                                System.out.println("Mensagem inválida: " + mensagem);
+                                System.out.println("REJEITADO: " + mensagem);
                                 return;
                             }
 
                             String sensorId = campos[1];
                             double temperatura = Double.parseDouble(campos[2]);
+
+                            int particaoEsperada = partitioner.of(sensorId);
+
+                            if (particaoEsperada != partitionId) {
+                                System.out.println(
+                                        "PARTIÇÃO ERRADA: " + sensorId +
+                                                " pertence a p" + particaoEsperada
+                                );
+                                return;
+                            }
 
                             SensorRecord r;
 
@@ -63,9 +97,9 @@ public class PartitionLeader {
                             }
 
                             String mensagemSaida =
-                                    "REG;" + LEADER_ADDR + ";" + tcpPort + ";" + r.toLine();
+                                    Wire.reg(leaderAddr, tcpPort, r);
 
-                            pubSub.publish(TOPIC_OUT, mensagemSaida);
+                            pubSub.publish(topicOut, mensagemSaida);
 
                             System.out.println("Registado e enviado: " + mensagemSaida);
 
@@ -86,11 +120,12 @@ public class PartitionLeader {
 
                 System.out.println(
                         "Servidor TCP à escuta em " +
-                                LEADER_ADDR + ":" + tcpPort
+                                leaderAddr + ":" + tcpPort
                 );
 
                 while (true) {
                     Socket socket = serverSocket.accept();
+                    socket.setSoTimeout(Wire.T_TCP_MS);
 
                     try (
                             BufferedReader in = new BufferedReader(
@@ -113,18 +148,40 @@ public class PartitionLeader {
 
                         if (campos.length != 3 || !campos[0].equals("PEDIDO")) {
                             System.out.println("Pedido inválido: " + pedido);
-                            out.println("FIM");
+                            out.println("ERRO pedido mal formado");
                             continue;
                         }
 
-                        long from = Long.parseLong(campos[1]);
-                        long to = Long.parseLong(campos[2]);
+                        long from;
+                        long to;
+
+                        try {
+                            from = Long.parseLong(campos[1]);
+                            to = Long.parseLong(campos[2]);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Pedido inválido: " + pedido);
+                            out.println("ERRO valores invalidos");
+                            continue;
+                        }
+
+                        if (from > to) {
+                            System.out.println("Intervalo inválido: " + from + ".." + to);
+                            out.println("ERRO intervalo invalido");
+                            continue;
+                        }
+
+                        long ultimoSeq = seq[0];
+
+                        if (to > ultimoSeq) {
+                            to = ultimoSeq;
+                        }
 
                         List<SensorRecord> records = file.range(from, to);
 
                         System.out.println(
-                                "Recuperação: " +
+                                "RECUPERAÇÃO: " +
                                         from + ".." + to +
+                                        " para " + socket.getRemoteSocketAddress() +
                                         " (" + records.size() + " registos)"
                         );
 
