@@ -1,0 +1,6 @@
+.env
+master.key
+target/
+.idea/
+*.iml
+.DS_Store
