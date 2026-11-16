@@ -1,3 +1,5 @@
+// Configuração e Arranque
+
 package tpf;
 
 import io.github.cdimascio.dotenv.Dotenv;
@@ -12,6 +14,7 @@ public class LeaderBot {
 
     public static void main(String[] args) throws InterruptedException {
 
+        // Carrega o token
         Dotenv dotenv = Dotenv.load();
         String token = dotenv.get("DISCORD_TOKEN");
 
@@ -20,6 +23,7 @@ public class LeaderBot {
             return;
         }
 
+        // Cria a ligação ao Discord
         JDA jda = JDABuilder.createDefault(token)
                 .enableIntents(GatewayIntent.MESSAGE_CONTENT)
                 .addEventListeners(new BotListener())
@@ -27,6 +31,7 @@ public class LeaderBot {
 
         jda.awaitReady();
 
+        // Encontra servidor do Discord
         Guild guild = jda.getGuilds().stream()
                 .filter(g -> g.getName().equals("SDT - TPF"))
                 .findFirst()

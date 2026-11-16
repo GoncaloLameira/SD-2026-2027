@@ -1,14 +1,19 @@
+// Tratamento dos eventos recebidos do Discord
+
 package tpf;
 
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 
+// Facilita o tratamento de eventos com JDA
 public class BotListener extends ListenerAdapter {
 
     @Override
+    // event contem informação de quem executou, qual comando, em que servidor etc
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
 
+        // Devolve o nome do comando
         switch (event.getName()) {
 
             // /registar <texto>
@@ -17,6 +22,7 @@ public class BotListener extends ListenerAdapter {
 
                 if (texto.isBlank()) {
                     event.reply("O texto não pode estar vazio.")
+                            // resposta privada
                             .setEphemeral(true)
                             .queue();
                     return;
