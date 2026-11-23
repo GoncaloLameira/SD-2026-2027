@@ -1,0 +1,28 @@
+
+# Credenciais e chaves de cifra
+.env
+master.key
+
+# Dados locais do arquivo
+registos.log
+eventos-lider.txt
+selados/
+
+# Copias de seguranca
+backup-sprint2/
+*.bak
+*.backup
+
+# Ficheiros temporarios
+*.tmp
+
+# Maven
+target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
